@@ -101,6 +101,30 @@ class DetBenchPredict(nn.Module):
             x.shape[0], class_out, box_out, self.anchors.boxes, indices, classes,
             img_scale, img_size, max_det_per_image=self.max_det_per_image, soft_nms=self.soft_nms
         )
+class DetBenchPredict_benhacked(nn.Module):
+    def __init__(self, model):
+        super(DetBenchPredict_benhacked, self).__init__()
+        self.model = model
+        self.config = model.config  # FIXME remove this when we can use @property (torchscript limitation)
+        self.num_levels = model.config.num_levels
+        self.num_classes = model.config.num_classes
+        self.anchors = Anchors.from_config(model.config)
+        self.max_detection_points = model.config.max_detection_points
+        self.max_det_per_image = model.config.max_det_per_image
+        self.soft_nms = model.config.soft_nms
+
+    def forward(self, x, class_out, box_out, img_info: Optional[Dict[str, torch.Tensor]] = None):
+        class_out, box_out, indices, classes = _post_process(
+            class_out, box_out, num_levels=self.num_levels, num_classes=self.num_classes,
+            max_detection_points=self.max_detection_points)
+        if img_info is None:
+            img_scale, img_size = None, None
+        else:
+            img_scale, img_size = img_info['img_scale'], img_info['img_size']
+        return _batch_detection(
+            x.shape[0], class_out, box_out, self.anchors.boxes, indices, classes,
+            img_scale, img_size, max_det_per_image=self.max_det_per_image, soft_nms=self.soft_nms
+        )
 
 
 class DetBenchTrain(nn.Module):
